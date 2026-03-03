@@ -1,0 +1,89 @@
+package com.uoj.equipment.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+
+@Configuration
+public class SecurityConfig {
+
+    private final JwtFilter jwtFilter;
+
+    public SecurityConfig(JwtFilter jwtFilter) {
+        this.jwtFilter = jwtFilter;
+    }
+
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+
+        http
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(sm ->
+                        sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(auth -> auth
+                        // Public endpoints (no auth)
+                        // Keep /api/auth/me protected so controllers always receive Authentication.
+                        .requestMatchers(
+                                "/api/auth/login",
+                                "/api/auth/signup",
+                                "/api/auth/forgot-password",
+                                "/api/auth/reset-password",
+                                "/api/password/**"
+                        ).permitAll()
+
+                        // Role-based access
+                        .requestMatchers(HttpMethod.POST, "/api/student/requests")
+                        .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
+                        .requestMatchers(HttpMethod.GET, "/api/student/requests")
+                        .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
+
+                        // Lecturer uses the same accept/return flow as students for their own requests
+                        .requestMatchers(HttpMethod.POST, "/api/student/requests/*/accept-issue")
+                        .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
+                        .requestMatchers(HttpMethod.POST, "/api/student/request-items/*/accept-issue")
+                        .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
+                        .requestMatchers(HttpMethod.POST, "/api/student/requests/*/return")
+                        .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
+                        .requestMatchers(HttpMethod.POST, "/api/student/request-items/*/return")
+                        .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
+
+
+                        .requestMatchers("/api/student/**", "/api/staff/**")
+                        .hasAnyRole("STUDENT", "STAFF")
+
+                        .requestMatchers("/api/lecturer/**")
+                        .hasAnyRole("LECTURER", "HOD")
+
+                        .requestMatchers("/api/to/**")
+                        .hasRole("TO")
+
+                        .requestMatchers("/api/hod/**")
+                        .hasRole("HOD")
+
+                        .requestMatchers("/api/admin/**")
+                        .hasRole("ADMIN")
+
+                        // Common authenticated endpoints
+                        .requestMatchers("/api/common/**")
+                        .authenticated()
+
+                        .anyRequest()
+                        .authenticated()
+                )
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+
+        return http.build();
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration config) throws Exception {
+        return config.getAuthenticationManager();
+    }
+}
