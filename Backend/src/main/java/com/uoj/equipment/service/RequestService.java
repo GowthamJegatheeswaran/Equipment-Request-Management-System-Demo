@@ -62,7 +62,7 @@ public class RequestService {
     }
 
 
-    // LECTURER QUEUE
+    // LECTURER QUEU
 
     public List<RequestSummaryDTO> lecturerQueueDTO(String lecturerEmail) {
         User lecturer = userRepository.findByEmail(lecturerEmail).orElseThrow();
@@ -162,26 +162,25 @@ public class RequestService {
 
         // Lecturer selection
         User lecturer;
-        if (requester.getRole() == Role.LECTURER) {
-            lecturer = requester;
-        } else {
-            if (dto.getLecturerId() == null) {
-                throw new IllegalArgumentException("lecturerId required");
-            }
-            lecturer = userRepository.findById(dto.getLecturerId())
-                    .orElseThrow(() -> new IllegalArgumentException("Lecturer not found"));
-            if (lecturer.getRole() != Role.LECTURER && lecturer.getRole() != Role.HOD)
-    throw new IllegalArgumentException("Invalid lecturer");
+if (requester.getRole() == Role.LECTURER || requester.getRole() == Role.HOD) {
+    // Lecturer/HOD auto-assigns themselves — no lecturerId needed
+    lecturer = requester;
+} else {
+    if (dto.getLecturerId() == null) {
+        throw new IllegalArgumentException("lecturerId required");
+    }
+    lecturer = userRepository.findById(dto.getLecturerId())
+            .orElseThrow(() -> new IllegalArgumentException("Lecturer not found"));
+    if (lecturer.getRole() != Role.LECTURER && lecturer.getRole() != Role.HOD)
+        throw new IllegalArgumentException("Invalid lecturer");
 
-            // Lecturer dept must match lab dept
-            if (lab.getDepartment() == null || lecturer.getDepartment() == null) {
-                throw new IllegalArgumentException("Department information missing for lab/lecturer");
-            }
-            if (!com.uoj.equipment.util.DepartmentUtil.equalsNormalized(lecturer.getDepartment(), lab.getDepartment())) {
-                throw new IllegalArgumentException("Lecturer department mismatch");
-            }
-        }
-
+    if (lab.getDepartment() == null || lecturer.getDepartment() == null) {
+        throw new IllegalArgumentException("Department information missing for lab/lecturer");
+    }
+    if (!com.uoj.equipment.util.DepartmentUtil.equalsNormalized(lecturer.getDepartment(), lab.getDepartment())) {
+        throw new IllegalArgumentException("Lecturer department mismatch");
+    }
+}
         int priorityScore = priorityService.calculate(
                 dto.getPurpose(),       // now PurposeType
                 dto.getFromDate(),
@@ -265,16 +264,16 @@ public class RequestService {
             );
         }
         //LECTURER REQUEST
-        if (requester.getRole() == Role.LECTURER) {
-            notificationService.notifyUser(
-                    requester,
-                    NotificationType.REQUEST_SUBMITTED,
-                    "Your request created",
-                    "You created a new equipment request for lab " + lab.getName(),
-                    saved.getId(),
-                    null
-            );
-        }
+        if (requester.getRole() == Role.LECTURER || requester.getRole() == Role.HOD) {
+    notificationService.notifyUser(
+            requester,
+            NotificationType.REQUEST_SUBMITTED,
+            "Your request created",
+            "You created a new equipment request for lab " + lab.getName(),
+            saved.getId(),
+            null
+    );
+}
 
 
 
