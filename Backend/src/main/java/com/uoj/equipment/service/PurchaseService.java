@@ -458,6 +458,20 @@ public class PurchaseService {
             );
         }
 
+        // Notify all Admin users (safe here — DTO is built from in-memory items list below, not pr.getItems())
+        List<User> admins = userRepository.findByRole(Role.ADMIN);
+        for (User admin : admins) {
+            notificationService.notifyUser(
+                    admin,
+                    NotificationType.PURCHASE_APPROVED_BY_ADMIN,
+                    "Purchase received by HOD",
+                    "HOD " + hodUser.getFullName() + " confirmed receiving purchase #" + pr.getId() +
+                    " (" + pr.getDepartment() + " dept). Inventory has been updated.",
+                    null,
+                    pr.getId()
+            );
+        }
+
         // Build return DTO from the already-loaded items list (avoids lazy-load after multiple saves)
         PurchaseRequestSummaryDTO dto = new PurchaseRequestSummaryDTO();
         dto.setId(pr.getId());
