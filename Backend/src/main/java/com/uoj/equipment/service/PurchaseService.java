@@ -238,6 +238,21 @@ public class PurchaseService {
             pr.setStatus(PurchaseStatus.APPROVED_BY_HOD);
             purchaseRequestRepository.save(pr);
 
+            // ── Notify ALL Admin users: new purchase ready for their action ─
+            List<User> admins = userRepository.findByRole(Role.ADMIN);
+            for (User adminUser : admins) {
+                notificationService.notifyUser(
+                        adminUser,
+                        NotificationType.PURCHASE_APPROVED_BY_HOD,
+                        "Purchase Request Ready for Admin Approval",
+                        "HOD " + hodUser.getFullName() + " has approved purchase request #" + pr.getId() +
+                        " from the " + deptName + " department. " +
+                        "Items: " + itemsSummary + "." +
+                        " The request is now awaiting your final approval.",
+                        null, pr.getId()
+                );
+            }
+
             // ── Notify TO: HOD approved, forwarded to Admin ────────────────
             notificationService.notifyUser(
                     toUser,
@@ -423,7 +438,8 @@ public class PurchaseService {
 
         PurchaseRequest pr = purchaseRequestRepository.findById(purchaseRequestId)
                 .orElseThrow(() -> new IllegalArgumentException("Purchase request not found"));
-        if (pr.getHodUser() == null || !pr.getHodUser().getId().equals(hodUser.getId()))
+        // Null-safe HOD ownership check
+        if (pr.getHodUser() != null && !pr.getHodUser().getId().equals(hodUser.getId()))
             throw new IllegalArgumentException("This purchase request does not belong to this HOD");
         if (pr.getStatus() != PurchaseStatus.ISSUED_BY_ADMIN
                 && pr.getStatus() != PurchaseStatus.APPROVED_BY_ADMIN)
@@ -449,6 +465,21 @@ public class PurchaseService {
         String hodName   = hodUser.getFullName();
         String deptName  = pr.getDepartment();
         String itemsText = itemsSummary.length() > 0 ? itemsSummary.toString() : "—";
+
+        // ── Notify ALL Admin users: HOD has confirmed receipt ─────────────
+        List<User> adminsOnConfirm = userRepository.findByRole(Role.ADMIN);
+        for (User adminUser : adminsOnConfirm) {
+            notificationService.notifyUser(
+                    adminUser,
+                    NotificationType.PURCHASE_RECEIVED_BY_HOD,
+                    "Purchase Items Confirmed Received by HOD",
+                    "HOD " + hodUser.getFullName() + " has confirmed receipt of purchase request #" +
+                    pr.getId() + " (" + deptName + " department). " +
+                    "Items received: " + itemsText + ". " +
+                    "Lab inventory has been updated. Received date: " + pr.getReceivedDate() + ".",
+                    null, pr.getId()
+            );
+        }
 
         // ── Notify TO: items received, inventory updated ───────────────────
         if (pr.getToUser() != null) {

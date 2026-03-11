@@ -18,6 +18,7 @@ public class PurchaseRequestSummaryDTO {
 
     private String requestedByName;
     private String requestedByEmail;
+    private String hodName;            // HOD full name
 
     private List<ItemLine> items;
 
@@ -152,6 +153,9 @@ public LocalDate getReceivedDate() {
     public void setRequestedByEmail(String requestedByEmail) {
         this.requestedByEmail = requestedByEmail;
     }
+
+    public String getHodName()             { return hodName; }
+    public void setHodName(String hodName) { this.hodName = hodName; }
 
     public List<ItemLine> getItems() {
         return items;

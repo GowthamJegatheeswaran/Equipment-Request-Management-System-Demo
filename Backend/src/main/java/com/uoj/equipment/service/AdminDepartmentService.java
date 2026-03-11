@@ -32,77 +32,58 @@ public class AdminDepartmentService {
     }
 
     public AdminDepartmentUsersDTO getDepartmentUsers(String department) {
+        List<String> aliases = com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department);
 
-        List<SimpleUserDTO> hods = mapUsers(
-                userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department), Role.HOD));
+        List<SimpleUserDTO> hods      = mapUsers(userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(aliases, Role.HOD));
+        List<SimpleUserDTO> tos       = mapUsers(userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(aliases, Role.TO));
+        List<SimpleUserDTO> lecturers = mapUsers(userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(aliases, Role.LECTURER));
+        List<SimpleUserDTO> staff     = mapUsers(userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(aliases, Role.STAFF));
+        List<SimpleUserDTO> students  = mapUsers(userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(aliases, Role.STUDENT));
 
-        List<SimpleUserDTO> tos = mapUsers(
-                userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department), Role.TO));
-
-        List<SimpleUserDTO> lecturers = mapUsers(
-                userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department), Role.LECTURER));
-
-        List<SimpleUserDTO> staff = mapUsers(
-                userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department), Role.STAFF));
-
-        List<SimpleUserDTO> students = mapUsers(
-                userRepository.findByDepartmentInAndRoleOrderByFullNameAsc(com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department), Role.STUDENT));
-
-        return new AdminDepartmentUsersDTO(
-                department,
-                hods,
-                tos,
-                lecturers,
-                staff,
-                students
-        );
+        return new AdminDepartmentUsersDTO(department, hods, tos, lecturers, staff, students);
     }
 
     private List<SimpleUserDTO> mapUsers(List<User> users) {
         return users.stream()
                 .map(u -> new SimpleUserDTO(
-                        u.getId(),
-                        u.getFullName(),
-                        u.getEmail(),
-                        u.getRegNo(),
-                        u.getDepartment(),
-                        u.getRole().name(),
-                        u.isEnabled()
-                ))
+                        u.getId(), u.getFullName(), u.getEmail(),
+                        u.getRegNo(), u.getDepartment(), u.getRole().name(), u.isEnabled()))
                 .collect(Collectors.toList());
     }
+
+    // ── PENDING PURCHASES (APPROVED_BY_HOD) ──────────────────────────────────
 
     public List<PurchaseRequestSummaryDTO> getDepartmentPendingPurchases(String department) {
         List<String> depts = com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department);
-        List<PurchaseRequest> list = purchaseRequestRepository
-                .findByDepartmentInAndStatusOrderByCreatedDateDesc(
-                        depts, PurchaseStatus.APPROVED_BY_HOD);
-
-        return list.stream()
+        return purchaseRequestRepository
+                .findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.APPROVED_BY_HOD)
+                .stream()
                 .map(this::mapToSummary)
                 .collect(Collectors.toList());
     }
+
+    // ── PURCHASE REPORT / HISTORY ─────────────────────────────────────────────
 
     public List<PurchaseRequestSummaryDTO> getDepartmentPurchaseReport(String department) {
         List<String> depts = com.uoj.equipment.util.DepartmentUtil.aliasesForQuery(department);
 
         List<PurchaseRequest> out = new java.util.ArrayList<>();
+        out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.APPROVED_BY_HOD));
         out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.ISSUED_BY_ADMIN));
         out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.RECEIVED_BY_HOD));
         out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.REJECTED_BY_HOD));
         out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.REJECTED_BY_ADMIN));
-
         try { out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.APPROVED_BY_ADMIN)); } catch (Exception ignored) {}
-        try { out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.RECEIVED_BY_TO)); } catch (Exception ignored) {}
+        try { out.addAll(purchaseRequestRepository.findByDepartmentInAndStatusOrderByCreatedDateDesc(depts, PurchaseStatus.RECEIVED_BY_TO));    } catch (Exception ignored) {}
 
         java.util.Map<Long, PurchaseRequest> uniq = new java.util.LinkedHashMap<>();
         for (PurchaseRequest pr : out) {
             if (pr != null && pr.getId() != null) uniq.putIfAbsent(pr.getId(), pr);
         }
+
         return uniq.values().stream()
-                .sorted((a,b) -> {
-                    java.time.LocalDate da = a.getCreatedDate();
-                    java.time.LocalDate db = b.getCreatedDate();
+                .sorted((a, b) -> {
+                    java.time.LocalDate da = a.getCreatedDate(), db = b.getCreatedDate();
                     if (da == null && db == null) return 0;
                     if (da == null) return 1;
                     if (db == null) return -1;
@@ -116,9 +97,10 @@ public class AdminDepartmentService {
         return getDepartmentPurchaseReport(department);
     }
 
+    // ── MAPPER ────────────────────────────────────────────────────────────────
+
     private PurchaseRequestSummaryDTO mapToSummary(PurchaseRequest pr) {
-        List<PurchaseRequestSummaryDTO.ItemLine> itemLines = pr.getItems()
-                .stream()
+        List<PurchaseRequestSummaryDTO.ItemLine> itemLines = pr.getItems().stream()
                 .map(this::mapItem)
                 .collect(Collectors.toList());
 
@@ -130,9 +112,16 @@ public class AdminDepartmentService {
         dto.setCreatedDate(pr.getCreatedDate());
         dto.setIssuedDate(pr.getIssuedDate());
         dto.setReceivedDate(pr.getReceivedDate());
-        if (pr.getHodUser()!= null) {
-            dto.setRequestedByName(pr.getHodUser().getFullName());
-            dto.setRequestedByEmail(pr.getHodUser().getEmail());
+
+        // ── TO (submitted by) ────────────────────────────────────────────────
+        if (pr.getToUser() != null) {
+            dto.setRequestedByName(pr.getToUser().getFullName());   // ← FIXED: was HOD name
+            dto.setRequestedByEmail(pr.getToUser().getEmail());
+        }
+
+        // ── HOD (approver) — now in its own field ────────────────────────────
+        if (pr.getHodUser() != null) {
+            dto.setHodName(pr.getHodUser().getFullName());          // ← NEW field
         }
 
         dto.setItems(itemLines);
