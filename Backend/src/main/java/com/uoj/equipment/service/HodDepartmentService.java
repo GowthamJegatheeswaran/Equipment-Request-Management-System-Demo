@@ -65,13 +65,27 @@ public class HodDepartmentService {
 
             User req = r.getRequester();
 
+            // ── requesterRole: human-readable label ────────────────────────
+            String roleLabel = null;
+            if (req != null && req.getRole() != null) {
+                roleLabel = switch (req.getRole()) {
+                    case STUDENT  -> "Student";
+                    case STAFF    -> "Staff";
+                    case LECTURER -> "Lecturer";
+                    case HOD      -> "HOD";
+                    case TO       -> "Technical Officer";
+                    case ADMIN    -> "Admin";
+                };
+            }
+
             out.add(new HodDeptRequestDTO(
                     r.getId(),
                     r.getLab().getId(),
                     r.getLab().getName(),
-                    req != null ? req.getId() : null,
+                    req != null ? req.getId()       : null,
                     req != null ? req.getFullName() : null,
-                    req != null ? req.getRegNo() : null,
+                    req != null ? req.getRegNo()    : null,
+                    roleLabel,                              // ← requesterRole populated
                     String.valueOf(r.getStatus()),
                     String.valueOf(r.getPurpose()),
                     r.getFromDate(),
