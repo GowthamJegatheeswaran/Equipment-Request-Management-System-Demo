@@ -14,7 +14,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
-
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.core.userdetails.UserDetails;
 import java.util.Map;
 
 @RestController
@@ -205,4 +206,22 @@ public class AuthController {
         passwordResetService.resetPassword(dto.getToken().trim(), dto.getNewPassword());
         return ResponseEntity.ok(Map.of("message", "Password has been reset successfully. You may now log in."));
     }
+
+    @PostMapping("/change-password")
+public ResponseEntity<?> changePassword(
+        @RequestBody ChangePasswordDTO dto,
+        @AuthenticationPrincipal UserDetails principalUser) {
+
+    User user = userRepository.findByEmail(principalUser.getUsername())
+            .orElseThrow(() -> new RuntimeException("User not found"));
+
+    if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
+        return ResponseEntity.badRequest().body("Current password is incorrect");
+    }
+
+    user.setPasswordHash(passwordEncoder.encode(dto.getNewPassword()));
+    userRepository.save(user);
+
+    return ResponseEntity.ok("Password changed successfully");
+}
 }
