@@ -1,6 +1,7 @@
 package com.uoj.equipment.service;
 
 import com.uoj.equipment.dto.LabDTO;
+import com.uoj.equipment.dto.SimpleUserDTO;
 import com.uoj.equipment.entity.Lab;
 import com.uoj.equipment.entity.User;
 import com.uoj.equipment.enums.Role;
@@ -44,6 +45,31 @@ public class HodLabService {
         return labRepository.findByDepartmentOrderByIdAsc(hod.getDepartment())
                 .stream()
                 .map(this::toLabDTO)
+                .toList();
+    }
+
+    /**
+     * Returns all TO-role users in the HOD's department.
+     * Uses department aliases (CE/COM/CSE) for legacy data compatibility.
+     * Does NOT filter on emailVerified — admin-injected TOs with emailVerified=false
+     * are fully valid and must appear in the dropdown.
+     */
+    @Transactional(readOnly = true)
+    public List<SimpleUserDTO> getDepartmentTOs(String hodEmail) {
+        User hod = userRepository.findByEmail(hodEmail)
+                .orElseThrow(() -> new IllegalArgumentException("HOD not found"));
+
+        if (hod.getRole() != Role.HOD) {
+            throw new IllegalArgumentException("Only HOD can list department TOs");
+        }
+
+        List<String> aliases = DepartmentUtil.aliasesForQuery(hod.getDepartment());
+        return userRepository
+                .findByDepartmentInAndRoleOrderByFullNameAsc(aliases, Role.TO)
+                .stream()
+                .map(u -> new SimpleUserDTO(
+                        u.getId(), u.getFullName(), u.getEmail(),
+                        u.getRegNo(), u.getDepartment(), u.getRole().name(), u.isEnabled()))
                 .toList();
     }
 

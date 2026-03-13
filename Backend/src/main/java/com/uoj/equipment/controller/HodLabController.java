@@ -1,6 +1,7 @@
 package com.uoj.equipment.controller;
 
 import com.uoj.equipment.dto.LabDTO;
+import com.uoj.equipment.dto.SimpleUserDTO;
 import com.uoj.equipment.service.HodLabService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -36,6 +37,17 @@ public class HodLabController {
     @GetMapping
     public ResponseEntity<List<LabDTO>> listLabs(Authentication auth) {
         return ResponseEntity.ok(hodLabService.listLabsForHod(auth.getName()));
+    }
+
+    /**
+     * HOD fetch all TO-role users in their department.
+     * Secured under /api/hod/** (HOD role only).
+     * Does NOT require emailVerified=true — admin-created TOs must appear here.
+     * Frontend calls GET /api/hod/labs/department-tos to populate the assign dropdown.
+     */
+    @GetMapping("/department-tos")
+    public ResponseEntity<List<SimpleUserDTO>> getDepartmentTOs(Authentication auth) {
+        return ResponseEntity.ok(hodLabService.getDepartmentTOs(auth.getName()));
     }
 
     /** HOD assign a TO to a specific lab. Returns updated LabDTO. */
