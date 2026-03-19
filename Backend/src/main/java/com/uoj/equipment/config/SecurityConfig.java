@@ -31,23 +31,21 @@ public class SecurityConfig {
                 .sessionManagement(sm ->
                         sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Public endpoints (no auth)
-                        // Keep /api/auth/me protected so controllers always receive Authentication.
                         .requestMatchers(
                                 "/api/auth/login",
                                 "/api/auth/signup",
                                 "/api/auth/forgot-password",
                                 "/api/auth/reset-password",
+                                "/api/auth/verify-email",
+                                "/api/auth/resend-verification",
                                 "/api/password/**"
                         ).permitAll()
 
-                        // Role-based access
                         .requestMatchers(HttpMethod.POST, "/api/student/requests")
                         .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
                         .requestMatchers(HttpMethod.GET, "/api/student/requests")
                         .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
 
-                        // Lecturer uses the same accept/return flow as students for their own requests
                         .requestMatchers(HttpMethod.POST, "/api/student/requests/*/accept-issue")
                         .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
                         .requestMatchers(HttpMethod.POST, "/api/student/request-items/*/accept-issue")
@@ -56,7 +54,6 @@ public class SecurityConfig {
                         .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
                         .requestMatchers(HttpMethod.POST, "/api/student/request-items/*/return")
                         .hasAnyRole("STUDENT", "STAFF", "LECTURER", "HOD")
-
 
                         .requestMatchers("/api/student/**", "/api/staff/**")
                         .hasAnyRole("STUDENT", "STAFF")
@@ -73,7 +70,6 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**")
                         .hasRole("ADMIN")
 
-                        // Common authenticated endpoints
                         .requestMatchers("/api/common/**")
                         .authenticated()
 
@@ -92,18 +88,18 @@ public class SecurityConfig {
     }
 
     @Bean
-public CorsFilter corsFilter() {
-    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-    CorsConfiguration config = new CorsConfiguration();
-    config.setAllowCredentials(true);
+    public CorsFilter corsFilter() {
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        CorsConfiguration config = new CorsConfiguration();
+        config.setAllowCredentials(true);
 
-    // ADD your frontend URL here (the one you set in .env)
-    config.addAllowedOrigin("https://equipment-request-frontend-production.up.railway.app");
+        // Updated to new frontend URL
+        config.addAllowedOrigin("https://erms.up.railway.app");
 
-    config.addAllowedHeader("*");
-    config.addAllowedMethod("*");
+        config.addAllowedHeader("*");
+        config.addAllowedMethod("*");
 
-    source.registerCorsConfiguration("/**", config);
-    return new CorsFilter(source);
-}
+        source.registerCorsConfiguration("/**", config);
+        return new CorsFilter(source);
+    }
 }
