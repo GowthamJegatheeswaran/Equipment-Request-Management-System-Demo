@@ -33,34 +33,8 @@ public class PasswordResetService {
     }
 
     // ── Step 1: generate OTP and send it by email ────────────────────────────
-    // Split into two methods: DB work inside @Transactional, email send OUTSIDE
-    // so that a failed email does not roll back the saved OTP, and the real
-    // exception is not swallowed by the transaction manager.
-    public void sendOtpForEmail(String email) {
-        // 1. Save OTP in a separate committed transaction first
-        String[] result = saveOtp(email);
-        String userEmail   = result[0];
-        String fullName    = result[1];
-        String otp         = result[2];
-
-        // 2. Send email AFTER the transaction has committed — errors propagate cleanly
-        String subject = "[ERMS] Your Password Reset OTP";
-        String body =
-                "Dear " + fullName + ",\n\n"
-              + "You requested a password reset for your ERMS account.\n\n"
-              + "Your One-Time Password (OTP) is:\n\n"
-              + "        " + otp + "\n\n"
-              + "This OTP expires in 10 minutes.\n"
-              + "Do NOT share this code with anyone.\n\n"
-              + "If you did not request this, you can safely ignore this email.\n\n"
-              + "Equipment Request System\n"
-              + "Faculty of Engineering, University of Jaffna";
-
-        emailService.sendPlainTextEmail(userEmail, subject, body);
-    }
-
     @Transactional
-    protected String[] saveOtp(String email) {
+    public void sendOtpForEmail(String email) {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException(
                         "No account found with this email address."));
@@ -75,7 +49,32 @@ public class PasswordResetService {
         otpRepository.save(new PasswordResetOtp(otp, user,
                 LocalDateTime.now().plusMinutes(10)));
 
-        return new String[]{ user.getEmail(), user.getFullName(), otp };
+        String subject = "[ERMS] Your Password Reset OTP";
+        String body =
+                "Dear " + user.getFullName() + ",\n\n"
+              + "You requested a password reset for your ERMS account.\n\n"
+              + "Your One-Time Password (OTP) is:\n\n"
+              + "        " + otp + "\n\n"
+              + "This OTP expires in 10 minutes.\n"
+              + "Do NOT share this code with anyone.\n\n"
+              + "If you did not request this, you can safely ignore this email.\n\n"
+              + "Equipment Request System\n"
+              + "Faculty of Engineering, University of Jaffna";
+
+        emailService.sendPlainTextEmail(user.getEmail(), subject, body);
+    }
+
+    // ── Step 1.5: verify OTP only (no password change) ──────────────────────
+    public void verifyOtp(String email, String otp) {
+        PasswordResetOtp record = otpRepository
+                .findTopByUser_EmailAndOtpAndUsedFalseOrderByIdDesc(email, otp)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Invalid OTP. Please check the code and try again."));
+
+        if (record.getExpiresAt().isBefore(LocalDateTime.now()))
+            throw new IllegalArgumentException(
+                    "OTP has expired. Please request a new one.");
+        // OTP is valid — do not mark as used yet (password reset step will do that)
     }
 
     // ── Step 2: verify OTP + set new password ────────────────────────────────

@@ -199,6 +199,24 @@ public class AuthController {
         }
     }
 
+    // ── VERIFY OTP — Step 1.5: check OTP is valid before showing password form ─
+    //   POST /api/auth/verify-otp   { "email": "...", "otp": "482931" }
+    @PostMapping("/verify-otp")
+    public ResponseEntity<?> verifyOtp(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        String otp   = body.get("otp");
+        if (email == null || email.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        if (otp == null || otp.isBlank())
+            return ResponseEntity.badRequest().body(Map.of("message", "OTP is required"));
+        try {
+            passwordResetService.verifyOtp(email.trim(), otp.trim());
+            return ResponseEntity.ok(Map.of("message", "OTP is valid"));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     // ── RESET PASSWORD — Step 2: verify OTP + set new password ───────────────
     //   POST /api/auth/reset-password   { "email": "...", "otp": "482931", "newPassword": "..." }
     @PostMapping("/reset-password")

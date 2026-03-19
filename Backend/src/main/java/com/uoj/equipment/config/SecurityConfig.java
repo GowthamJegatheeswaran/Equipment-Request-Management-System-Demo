@@ -35,10 +35,10 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/signup",
                                 "/api/auth/forgot-password",
+                                "/api/auth/verify-otp",
                                 "/api/auth/reset-password",
                                 "/api/auth/verify-email",
-                                "/api/auth/resend-verification",
-                                "/api/password/**"
+                                "/api/auth/resend-verification"
                         ).permitAll()
 
                         .requestMatchers(HttpMethod.POST, "/api/student/requests")
