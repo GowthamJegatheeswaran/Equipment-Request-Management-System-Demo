@@ -23,6 +23,14 @@ public class EmailService {
     private final HttpClient httpClient = HttpClient.newHttpClient();
 
     public void sendPlainTextEmail(String to, String subject, String body) {
+        // DIAGNOSTIC — print key prefix and sender so we can verify config is loaded
+        String keyPreview = (brevoApiKey == null || brevoApiKey.isBlank())
+                ? "NULL/EMPTY ← PROBLEM!"
+                : brevoApiKey.substring(0, Math.min(12, brevoApiKey.length())) + "...";
+        System.out.println("[EmailService] BREVO KEY prefix: " + keyPreview);
+        System.out.println("[EmailService] FROM: " + fromEmail);
+        System.out.println("[EmailService] TO:   " + to);
+
         try {
             String htmlBody = "<pre style=\"font-family:Arial,sans-serif;font-size:14px;\">"
                     + escapeHtml(body) + "</pre>";
@@ -45,13 +53,15 @@ public class EmailService {
             HttpResponse<String> response = httpClient.send(
                     request, HttpResponse.BodyHandlers.ofString());
 
+            System.out.println("[EmailService] Brevo response status: " + response.statusCode());
+            System.out.println("[EmailService] Brevo response body:   " + response.body());
+
             if (response.statusCode() != 201) {
                 throw new RuntimeException(
                         "Brevo API error " + response.statusCode() + ": " + response.body());
             }
 
-            System.out.println("[EmailService] Email sent to " + to
-                    + " | status=" + response.statusCode());
+            System.out.println("[EmailService] ✓ Email sent successfully to " + to);
 
         } catch (RuntimeException e) {
             throw e;
